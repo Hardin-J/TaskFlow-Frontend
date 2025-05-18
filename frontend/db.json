@@ -1,0 +1,491 @@
+{
+  "users": [
+    {
+      "id": "1",
+      "name": "John Doe",
+      "email": "john@example.com",
+      "password": "$2a$10$ZL6gJQWAuLYn/tU.9CJCu.LbPn5.Yz7KgRzSRAeV5EUgiTVUHQ06m",
+      "role": "admin",
+      "department": "Engineering",
+      "lastLogin": "2025-04-05T18:30:00Z"
+    },
+    {
+      "id": "2",
+      "name": "Jane Smith",
+      "email": "jane@example.com",
+      "password": "$2a$10$ZL6gJQWAuLYn/tU.9CJCu.LbPn5.Yz7KgRzSRAeV5EUgiTVUHQ06m",
+      "role": "student",
+      "department": "Marketing",
+      "lastLogin": "2025-04-06T09:15:00Z",
+      "tempPassword": null,
+      "passwordResetRequested": null,
+      "passwordChangedAt": null
+    },
+    {
+      "id": "1eafa2bb-df99-4f40-b183-50f7d8f857c0",
+      "name": "Varshinee",
+      "email": "varshinee@gmail.com",
+      "password": "$2b$10$5DNkGONVGl2kmRByUsPNjuMSiQVIXxvN1KVibqjy6NgjcRU0dG9JO",
+      "role": "student",
+      "department": "Full Stack",
+      "lastLogin": "2025-05-12T06:51:45.454Z",
+      "tempPassword": null,
+      "passwordResetRequested": null,
+      "passwordChangedAt": "2025-05-04T13:01:26.845Z"
+    },
+    {
+      "id": "99a817fb-da92-44c8-a826-e3b375def2a3",
+      "name": "Meena",
+      "email": "meena@gmail.com",
+      "password": "$2b$10$cecWU7aGddOlAQ6krNoAauT7h/WR2EgoVXot2fiSqSFaLc6IFNBM2",
+      "role": "",
+      "department": "",
+      "lastLogin": "2025-04-07T07:21:37.816Z",
+      "tempPassword": null,
+      "passwordResetRequested": null,
+      "passwordChangedAt": null
+    },
+    {
+      "id": "3",
+      "name": "Alex Johnson",
+      "email": "alex@example.com",
+      "password": "$2b$10$LDz1i0AbzomehL5I4q/nOO6OY9MLwg3ewPu9AvubI1ZPA643i7Dp.",
+      "role": "teacher",
+      "department": "Science",
+      "lastLogin": "2025-04-01T10:15:22.533Z",
+      "tempPassword": "x2kf9pq7",
+      "passwordResetRequested": "2025-04-07T08:12:37.816Z",
+      "passwordChangedAt": null
+    },
+    {
+      "id": "u-1746369934399",
+      "name": "Varsha",
+      "email": "varsha@gmail.com",
+      "role": "admin",
+      "department": "IT",
+      "password": "123456789",
+      "lastLogin": null
+    }
+  ],
+  "passwordResets": [
+    {
+      "id": "1",
+      "userId": "3",
+      "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIzIiwiaWF0IjoxNjgwOTYyMzY3LCJleHAiOjE2ODA5NjU5Njd9",
+      "expiresAt": "2025-04-08T08:12:37.816Z",
+      "isUsed": false,
+      "createdAt": "2025-04-07T08:12:37.816Z"
+    }
+  ],
+  "workspaces": [
+    {
+      "id": "ws-1",
+      "title": "Marketing Campaign 2025",
+      "description": "Workspace for the Q2 marketing ",
+      "createdBy": "1",
+      "createdAt": "2025-03-10T14:30:00Z",
+      "members": [
+        "1",
+        "2",
+        "3"
+      ]
+    },
+    {
+      "id": "ws-2",
+      "title": "Web Development Project",
+      "description": "Full stack web application development for client XYZ",
+      "createdBy": "1eafa2bb-df99-4f40-b183-50f7d8f857c0",
+      "createdAt": "2025-03-15T09:45:00Z",
+      "members": [
+        "1eafa2bb-df99-4f40-b183-50f7d8f857c0",
+        "99a817fb-da92-44c8-a826-e3b375def2a3",
+        "1"
+      ]
+    },
+    {
+      "id": "ws-3",
+      "title": "Science Curriculum Development",
+      "description": "Development of new science curriculum for the upcoming semester",
+      "createdBy": "3",
+      "createdAt": "2025-03-20T11:15:00Z",
+      "members": [
+        "3",
+        "2"
+      ]
+    },
+    {
+      "id": "ws-1744987962027",
+      "title": "HelooHello",
+      "description": "Hello",
+      "createdBy": "1eafa2bb-df99-4f40-b183-50f7d8f857c0",
+      "createdAt": "2025-04-18T14:52:42.027Z",
+      "members": [
+        "1eafa2bb-df99-4f40-b183-50f7d8f857c0"
+      ]
+    },
+    {
+      "id": "ws-1744990936244",
+      "title": "Sample Workspace",
+      "description": "sample works",
+      "createdBy": "1eafa2bb-df99-4f40-b183-50f7d8f857c0",
+      "createdAt": "2025-04-18T15:42:16.244Z",
+      "members": [
+        "1eafa2bb-df99-4f40-b183-50f7d8f857c0"
+      ]
+    }
+  ],
+  "projects": [
+    {
+      "id": "p-1",
+      "workspaceId": "ws-1",
+      "title": "Social Media Campaign",
+      "description": "Plan and execute social media marketing campaign for Q2",
+      "targetDate": "2025-06-15",
+      "createdBy": "1",
+      "createdAt": "2025-03-12T10:20:00Z",
+      "status": "Completed"
+    },
+    {
+      "id": "p-2",
+      "workspaceId": "ws-1",
+      "title": "Email Marketing Series",
+      "description": "Create email marketing series for product launch",
+      "targetDate": "2025-05-30",
+      "createdBy": "2",
+      "createdAt": "2025-03-14T15:45:00Z",
+      "status": "On Hold"
+    },
+    {
+      "id": "p-3",
+      "workspaceId": "ws-2",
+      "title": "Frontend Development",
+      "description": "Develop responsive user interface for the web application",
+      "targetDate": "2025-05-15",
+      "createdBy": "1eafa2bb-df99-4f40-b183-50f7d8f857c0",
+      "createdAt": "2025-03-16T08:30:00Z",
+      "status": "In Progress"
+    },
+    {
+      "id": "p-4",
+      "workspaceId": "ws-2",
+      "title": "Backend API Development",
+      "description": "Develop RESTful API endpoints for the application",
+      "targetDate": "2025-05-20",
+      "createdBy": "1",
+      "createdAt": "2025-03-17T13:15:00Z",
+      "status": "Not Started",
+      "members": [
+        "2543f0f1-609b-46fd-a821-3e941516f3dd",
+        "3",
+        "99a817fb-da92-44c8-a826-e3b375def2a3"
+      ]
+    },
+    {
+      "id": "p-5",
+      "workspaceId": "ws-3",
+      "title": "Physics Curriculum",
+      "description": "Develop new physics curriculum for high school students",
+      "targetDate": "2025-07-01",
+      "createdBy": "3",
+      "createdAt": "2025-03-21T09:10:00Z",
+      "status": "In Progress"
+    },
+    {
+      "id": "p-1744990962233",
+      "title": "Sample Project",
+      "workspaceId": "ws-1744990936244",
+      "targetDate": "2025-04-19",
+      "description": "sample ",
+      "status": "In Progress",
+      "createdBy": "1eafa2bb-df99-4f40-b183-50f7d8f857c0",
+      "createdAt": "2025-04-18T15:42:42.233Z",
+      "members": [
+        "1eafa2bb-df99-4f40-b183-50f7d8f857c0",
+        "2",
+        "1"
+      ]
+    }
+  ],
+  "tasks": [
+    {
+      "id": "t-1",
+      "projectId": "p-1",
+      "title": "Content Calendar Creation",
+      "description": "Create a content calendar for social media posts",
+      "assignedTo": "2",
+      "milestone": "Sprint 1",
+      "status": "In Progress",
+      "category": "Design",
+      "priority": "High",
+      "targetDate": "2025-04-20",
+      "createdBy": "1",
+      "createdAt": "2025-03-13T09:30:00Z"
+    },
+    {
+      "id": "t-2",
+      "projectId": "p-1",
+      "title": "Graphics Design",
+      "description": "Design graphics for social media posts",
+      "assignedTo": "99a817fb-da92-44c8-a826-e3b375def2a3",
+      "milestone": "Sprint 1",
+      "status": "Not Started",
+      "category": "Design",
+      "priority": "Medium",
+      "targetDate": "2025-04-25",
+      "createdBy": "1",
+      "createdAt": "2025-03-13T10:15:00Z"
+    },
+    {
+      "id": "t-3",
+      "projectId": "p-1",
+      "title": "Performance Analytics Setup",
+      "description": "Set up analytics to track campaign performance",
+      "assignedTo": "1",
+      "milestone": "Sprint 2",
+      "status": "Not Started",
+      "category": "Research",
+      "priority": "Low",
+      "targetDate": "2025-05-10",
+      "createdBy": "1",
+      "createdAt": "2025-03-13T14:20:00Z"
+    },
+    {
+      "id": "t-4",
+      "projectId": "p-2",
+      "title": "Email Template Design",
+      "description": "Design templates for email marketing series",
+      "assignedTo": "2",
+      "milestone": "MVP",
+      "status": "Not Started",
+      "category": "Design",
+      "priority": "Medium",
+      "targetDate": "2025-04-19",
+      "createdBy": "2",
+      "createdAt": "2025-03-15T11:30:00Z"
+    },
+    {
+      "id": "t-5",
+      "projectId": "p-3",
+      "title": "Component Library Development",
+      "description": "Develop reusable UI component library for the frontend",
+      "assignedTo": "1eafa2bb-df99-4f40-b183-50f7d8f857c0",
+      "milestone": "Sprint 1",
+      "status": "In Progress",
+      "category": "Development",
+      "priority": "High",
+      "targetDate": "2025-04-10",
+      "createdBy": "1eafa2bb-df99-4f40-b183-50f7d8f857c0",
+      "createdAt": "2025-03-17T09:45:00Z"
+    },
+    {
+      "id": "t-6",
+      "projectId": "p-3",
+      "title": "Responsive Layout Implementation",
+      "description": "Implement responsive layouts for all screen sizes",
+      "assignedTo": "99a817fb-da92-44c8-a826-e3b375def2a3",
+      "milestone": "Sprint 2",
+      "status": "Not Started",
+      "category": "Development",
+      "priority": "Medium",
+      "targetDate": "2025-04-20",
+      "createdBy": "1eafa2bb-df99-4f40-b183-50f7d8f857c0",
+      "createdAt": "2025-03-17T10:30:00Z"
+    },
+    {
+      "id": "t-7",
+      "projectId": "p-1",
+      "title": "Database Schema Design",
+      "description": "Design database schema for the application",
+      "assignedTo": "1",
+      "milestone": "Sprint 1",
+      "status": "Not Started",
+      "category": "Development",
+      "priority": "Critical",
+      "targetDate": "2025-04-05",
+      "createdBy": "1",
+      "createdAt": "2025-03-18T08:15:00Z"
+    },
+    {
+      "id": "t-8",
+      "projectId": "p-4",
+      "title": "Authentication API Development",
+      "description": "Develop authentication and authorization API endpoints",
+      "assignedTo": "1eafa2bb-df99-4f40-b183-50f7d8f857c0",
+      "milestone": "Sprint 1",
+      "status": "Not Started",
+      "category": "Development",
+      "priority": "High",
+      "targetDate": "2025-04-15",
+      "createdBy": "1",
+      "createdAt": "2025-03-18T09:30:00Z"
+    },
+    {
+      "id": "t-9",
+      "projectId": "p-5",
+      "title": "Learning Objectives Definition",
+      "description": "Define learning objectives for the physics curriculum",
+      "assignedTo": "3",
+      "milestone": "Sprint 1",
+      "status": "Completed",
+      "category": "Research",
+      "priority": "High",
+      "targetDate": "2025-04-10",
+      "createdBy": "3",
+      "createdAt": "2025-03-22T10:45:00Z"
+    },
+    {
+      "id": "t-10",
+      "projectId": "p-5",
+      "title": "Lesson Plans Development",
+      "description": "Develop detailed lesson plans for the curriculum",
+      "assignedTo": "2",
+      "milestone": "Sprint 2",
+      "status": "Not Started",
+      "category": "Documentation",
+      "priority": "Medium",
+      "targetDate": "2025-05-15",
+      "createdBy": "3",
+      "createdAt": "2025-03-22T14:20:00Z"
+    },
+    {
+      "id": "t-1744988857342",
+      "title": "Backend Development",
+      "projectId": "p-4",
+      "assignedTo": "1eafa2bb-df99-4f40-b183-50f7d8f857c0",
+      "milestone": "Sprint 2",
+      "status": "In Progress",
+      "category": "Development",
+      "priority": "Low",
+      "targetDate": "2025-04-25",
+      "description": "qwtyiobvfghkoojhdtfbftyf",
+      "createdBy": "1eafa2bb-df99-4f40-b183-50f7d8f857c0",
+      "createdAt": "2025-04-18T15:07:37.342Z"
+    },
+    {
+      "id": "t-1744991001904",
+      "title": "Sample Title",
+      "projectId": "p-1744990962233",
+      "assignedTo": "1eafa2bb-df99-4f40-b183-50f7d8f857c0",
+      "milestone": "MVP",
+      "status": "In Progress",
+      "category": "Design",
+      "priority": "Critical",
+      "targetDate": "2025-04-19",
+      "description": "Samplesdfghjkwertyuio",
+      "createdBy": "1eafa2bb-df99-4f40-b183-50f7d8f857c0",
+      "createdAt": "2025-04-18T15:43:21.904Z"
+    },
+    {
+      "id": "t-1744991979776",
+      "title": "Sample TS",
+      "projectId": null,
+      "assignedTo": "1eafa2bb-df99-4f40-b183-50f7d8f857c0",
+      "milestone": "Sprint 1",
+      "status": "Not Started",
+      "category": "Development",
+      "priority": "Critical",
+      "targetDate": "2025-04-19",
+      "description": "ertyuiougfdshjg",
+      "createdBy": "1eafa2bb-df99-4f40-b183-50f7d8f857c0",
+      "createdAt": "2025-04-18T15:59:39.776Z"
+    },
+    {
+      "id": "t-1746368797798",
+      "title": "qwertyuiop",
+      "projectId": "p-2",
+      "assignedTo": "1eafa2bb-df99-4f40-b183-50f7d8f857c0",
+      "milestone": "Sprint 2",
+      "status": "Not Started",
+      "category": "Development",
+      "priority": "Medium",
+      "targetDate": "2025-05-31",
+      "description": "qwertyuiop",
+      "createdBy": "1eafa2bb-df99-4f40-b183-50f7d8f857c0",
+      "createdAt": "2025-05-04T14:26:37.798Z"
+    }
+  ],
+  "comments": [
+    {
+      "id": "c-1",
+      "taskId": "t-1",
+      "userId": "1",
+      "content": "Let's make sure we align the content calendar with our overall marketing strategy.",
+      "createdAt": "2025-03-14T10:15:00Z"
+    },
+    {
+      "id": "c-2",
+      "taskId": "t-1",
+      "userId": "2",
+      "content": "I've started working on this. Will share a draft by tomorrow.",
+      "createdAt": "2025-03-14T11:30:00Z"
+    },
+    {
+      "id": "c-3",
+      "taskId": "t-5",
+      "userId": "1eafa2bb-df99-4f40-b183-50f7d8f857c0",
+      "content": "I'm using Tailwind CSS for the component library. Let me know if anyone has objections.",
+      "createdAt": "2025-03-18T08:45:00Z"
+    },
+    {
+      "id": "c-4",
+      "taskId": "t-9",
+      "userId": "3",
+      "content": "I've prepared the initial set of learning objectives. Please review when you get a chance.",
+      "createdAt": "2025-03-23T09:20:00Z"
+    },
+    {
+      "id": "c-5",
+      "taskId": "t-9",
+      "userId": "2",
+      "content": "Looks good! I've added some suggestions for the advanced topics section.",
+      "createdAt": "2025-03-24T14:15:00Z"
+    }
+  ],
+  "notifications": [
+    {
+      "id": "n-1",
+      "userId": "1",
+      "type": "task_assigned",
+      "content": "You have been assigned to the task 'Performance Analytics Setup'",
+      "relatedId": "t-3",
+      "isRead": false,
+      "createdAt": "2025-03-13T14:20:00Z"
+    },
+    {
+      "id": "n-2",
+      "userId": "2",
+      "type": "task_assigned",
+      "content": "You have been assigned to the task 'Content Calendar Creation'",
+      "relatedId": "t-1",
+      "isRead": true,
+      "createdAt": "2025-03-13T09:30:00Z"
+    },
+    {
+      "id": "n-3",
+      "userId": "1eafa2bb-df99-4f40-b183-50f7d8f857c0",
+      "type": "comment",
+      "content": "1 commented on your task 'Component Library Development'",
+      "relatedId": "c-3",
+      "isRead": false,
+      "createdAt": "2025-03-18T08:45:00Z"
+    },
+    {
+      "id": "n-4",
+      "userId": "99a817fb-da92-44c8-a826-e3b375def2a3",
+      "type": "task_assigned",
+      "content": "You have been assigned to the task 'Graphics Design'",
+      "relatedId": "t-2",
+      "isRead": false,
+      "createdAt": "2025-03-13T10:15:00Z"
+    },
+    {
+      "id": "n-5",
+      "userId": "3",
+      "type": "comment",
+      "content": "2 commented on your task 'Learning Objectives Definition'",
+      "relatedId": "c-5",
+      "isRead": false,
+      "createdAt": "2025-03-24T14:15:00Z"
+    }
+  ]
+}
