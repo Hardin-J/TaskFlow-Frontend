@@ -6,9 +6,6 @@ interface User {
   id: string;
   name: string;
   email: string;
-  role: string;
-  department: string;
-  lastLogin?: string;
 }
 
 interface Notification {
@@ -159,9 +156,9 @@ export default function Topbar({
             </div>
             <div className="ml-3">
               <p className="text-sm font-medium">{user?.name || 'Guest'}</p>
-              <p className={`text-xs ${darkMode ? "text-slate-400" : "text-slate-500"}`}>
+              {/* <p className={`text-xs ${darkMode ? "text-slate-400" : "text-slate-500"}`}>
                 Last login: {formatDate(user?.lastLogin)}
-              </p>
+              </p> */}
             </div>
           </div>
           
@@ -172,7 +169,7 @@ export default function Topbar({
             }`}>
               <div className="px-4 py-3">
                 <p className="text-sm font-medium">{user?.name || 'Guest'}</p>
-                <p className={`text-xs ${darkMode ? "text-slate-400" : "text-slate-500"}`}>
+                {/* <p className={`text-xs ${darkMode ? "text-slate-400" : "text-slate-500"}`}>
                   {user?.email || ''}
                 </p>
                 <p className={`text-xs mt-2 ${darkMode ? "text-slate-400" : "text-slate-500"}`}>
@@ -183,7 +180,7 @@ export default function Topbar({
                 </p>
                 <p className={`text-xs ${darkMode ? "text-slate-400" : "text-slate-500"}`}>
                   Last login: {formatDate(user?.lastLogin)}
-                </p>
+                </p> */}
               </div>
               <div className={`border-t ${darkMode ? "border-slate-700" : "border-gray-200"}`}>
                 <button 

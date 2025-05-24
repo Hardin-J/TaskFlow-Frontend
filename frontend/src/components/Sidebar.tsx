@@ -7,9 +7,6 @@ interface User {
   id: string;
   name: string;
   email: string;
-  role: string;
-  department: string;
-  lastLogin?: string;
 }
 
 interface SidebarProps {
@@ -44,7 +41,7 @@ export default function Sidebar({
     
     // Navigation handlers
     const navigateToProject = () => {
-      router.push("/project-list");
+      router.push("/project-dashboard");
       setShowWorkspaceDropdown(false); // Close dropdown after selection
     };
 
@@ -209,7 +206,7 @@ export default function Sidebar({
                     <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-6 h-6">
                       <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
                     </svg>
-                    {!sidebarCollapsed && <span className="ml-3">New Workspace</span>}
+                    {!sidebarCollapsed && <span className="ml-3">Activities</span>}
                   </div>
                   {!sidebarCollapsed && (
                     <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className={`w-4 h-4 transition-transform ${showWorkspaceDropdown ? 'rotate-180' : ''}`}>
@@ -223,7 +220,7 @@ export default function Sidebar({
                     darkMode ? "bg-slate-800 border border-slate-700" : "bg-white border border-slate-200"
                   }`}>
                     <ul>
-                      <li>
+                      {/* <li>
                         <button
                           onClick={navigateToWorkspace}
                           className={`flex w-full items-center px-4 py-2 text-sm ${
@@ -235,7 +232,7 @@ export default function Sidebar({
                           </svg>
                           Create Workspace
                         </button>
-                      </li>
+                      </li> */}
                       <li>
                         <button
                           onClick={navigateToProject}

@@ -4,7 +4,7 @@ import { useRouter } from "next/navigation";
 import Sidebar from "../../components/Sidebar";
 import Topbar from "../../components/Topbar";
 import toast from "react-hot-toast";
-import { addNewWorkspaces, editWorkspaces, getAllWorkspaces } from "@/services/Workspace.service";
+import { addNewWorkspaces, editWorkspaces, getAllWorkspaces, deleteWorkspace, getWorkspaceById } from "@/services/Workspace.service";
 
 interface User {
   id: string;
@@ -98,9 +98,22 @@ export default function WorkspacePage() {
     setShowEditModal(true);
   };
 
-  const handleOpenViewModal = (workspace: Workspace) => {
-    setCurrentWorkspace(workspace);
-    setShowViewModal(true);
+  const handleOpenViewModal = async (workspaceId: string) => {
+    try {
+      setIsProcessing(true);
+      const response = await getWorkspaceById(workspaceId);
+      if (response.status === 200) {
+        setCurrentWorkspace(response.data);
+        setShowViewModal(true);
+      } else {
+        toast.error("Failed to fetch workspace details");
+      }
+    } catch (error) {
+      console.error("Error fetching workspace details:", error);
+      toast.error("Failed to fetch workspace details");
+    } finally {
+      setIsProcessing(false);
+    }
   };
 
   const handleOpenDeleteModal = (workspace: Workspace) => {
@@ -178,13 +191,12 @@ export default function WorkspacePage() {
     try {
       // Update workspace object
       const updatedWorkspace = {
-        ...currentWorkspace,
         name: workspaceTitle,
         description: workspaceDescription,
       };
 
       // Send Edit
-      const response = await editWorkspaces(currentWorkspace.id,updatedWorkspace);        
+      const response = await editWorkspaces(currentWorkspace.id, updatedWorkspace);        
 
       console.log(response);
       
@@ -219,24 +231,22 @@ export default function WorkspacePage() {
     setIsProcessing(true);
 
     try {
-      // Send DELETE request to JSON server
-      const response = await fetch(`http://localhost:3001/workspaces/${currentWorkspace.id}`, {
-        method: 'DELETE',
-      });
+      // Send DELETE request using the service
+      const response = await deleteWorkspace(currentWorkspace.id);
 
-      if (!response.ok) {
+      if (response.status === 200) {
+        // Show success notification
+        toast.success("Workspace deleted successfully!");
+        
+        // Close modal
+        setShowDeleteModal(false);
+        setCurrentWorkspace(null);
+        
+        // Refresh workspace list
+        fetchWorkspaces();
+      } else {
         throw new Error('Failed to delete workspace');
       }
-      
-      // Show success notification
-      toast.success("Workspace deleted successfully!");
-      
-      // Close modal
-      setShowDeleteModal(false);
-      setCurrentWorkspace(null);
-      
-      // Refresh workspace list
-      fetchWorkspaces();
     } catch (error) {
       console.error("Error deleting workspace:", error);
       toast.error("Failed to delete workspace. Please try again.");
@@ -251,6 +261,10 @@ export default function WorkspacePage() {
       month: 'short',
       day: 'numeric'
     });
+  };
+
+  const getInitials = (name: string) => {
+    return name.split(' ').map(n => n[0]).join('').toUpperCase();
   };
 
   return (
@@ -291,7 +305,7 @@ export default function WorkspacePage() {
               </div>
               <button
                 onClick={handleOpenCreateModal}
-                className="mt-4 md:mt-0 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg flex items-center transition-colors"
+                className="mt-4 md:mt-0 px-6 py-3 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white rounded-lg flex items-center transition-all duration-200 shadow-lg hover:shadow-xl transform hover:scale-105"
               >
                 <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
@@ -300,7 +314,7 @@ export default function WorkspacePage() {
               </button>
             </div>
 
-            {/* Workspace List */}
+            {/* Workspace Cards */}
             {isLoading ? (
               <div className="flex justify-center items-center h-64">
                 <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
@@ -308,117 +322,160 @@ export default function WorkspacePage() {
             ) : (
               <>
                 {workspaces.length === 0 ? (
-                  <div className={`text-center py-12 ${darkMode ? "bg-slate-800" : "bg-white"} rounded-lg shadow`}>
-                    <svg xmlns="http://www.w3.org/2000/svg" className="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
-                    </svg>
-                    <h3 className="mt-2 text-sm font-medium">No workspaces found</h3>
-                    <p className={`mt-1 text-sm ${darkMode ? "text-slate-400" : "text-slate-500"}`}>
-                      Get started by creating a new workspace.
-                    </p>
-                    <div className="mt-6">
-                      <button
-                        onClick={handleOpenCreateModal}
-                        className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-                      >
-                        <svg xmlns="http://www.w3.org/2000/svg" className="-ml-1 mr-2 h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                  <div className={`text-center py-16 ${darkMode ? "bg-slate-800/50" : "bg-white"} rounded-2xl shadow-xl border ${darkMode ? "border-slate-700" : "border-gray-200"}`}>
+                    <div className="flex justify-center mb-4">
+                      <div className={`p-4 rounded-full ${darkMode ? "bg-slate-700" : "bg-gray-100"}`}>
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
                         </svg>
-                        Create Workspace
-                      </button>
+                      </div>
                     </div>
+                    <h3 className="text-xl font-semibold mb-2">No workspaces found</h3>
+                    <p className={`mb-6 ${darkMode ? "text-slate-400" : "text-slate-500"}`}>
+                      Get started by creating your first workspace to organize your projects.
+                    </p>
+                    <button
+                      onClick={handleOpenCreateModal}
+                      className="inline-flex items-center px-6 py-3 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white rounded-lg transition-all duration-200 shadow-lg hover:shadow-xl transform hover:scale-105"
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" className="-ml-1 mr-2 h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                      </svg>
+                      Create Your First Workspace
+                    </button>
                   </div>
                 ) : (
-                  <div className={`overflow-hidden rounded-lg shadow ${darkMode ? "bg-slate-800" : "bg-white"}`}>
-                    <div className="overflow-x-auto">
-                      <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-                        <thead className={darkMode ? "bg-slate-700" : "bg-gray-50"}>
-                          <tr>
-                            <th scope="col" className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider">
-                              Title
-                            </th>
-                            <th scope="col" className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider">
-                              Description
-                            </th>
-                            <th scope="col" className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider">
-                              Created By
-                            </th>
-                            <th scope="col" className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider">
-                              Created At
-                            </th>
-                            <th scope="col" className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider">
-                              Members
-                            </th>
-                            <th scope="col" className="px-6 py-3 text-right text-xs font-medium uppercase tracking-wider">
-                              Actions
-                            </th>
-                          </tr>
-                        </thead>
-                        <tbody className={`divide-y divide-gray-200 dark:divide-gray-700`}>
-                          {workspaces.map((workspace) => (
-                            <tr key={workspace.id}>
-                              <td className="px-6 py-4 whitespace-nowrap">
-                                <div className="text-sm font-medium">
-                                  {workspace?.name}
-                                </div>
-                              </td>
-                              <td className="px-6 py-4">
-                                <div className="text-sm line-clamp-2">
-                                  {workspace.description}
-                                </div>
-                              </td>
-                              <td className="px-6 py-4 whitespace-nowrap">
-                                <div className="text-sm">
-                                  {workspace.owner === user?.id ? 'You' : workspace.owner.name}
-                                </div>
-                              </td>
-                              <td className="px-6 py-4 whitespace-nowrap">
-                                <div className="text-sm">
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    {workspaces.map((workspace) => (
+                      <div 
+                        key={workspace.id} 
+                        className={`group relative overflow-hidden rounded-2xl shadow-lg hover:shadow-2xl transition-all duration-300 transform hover:scale-105 ${
+                          darkMode 
+                            ? "bg-gradient-to-br from-slate-800 to-slate-900 border border-slate-700" 
+                            : "bg-gradient-to-br from-white to-gray-50 border border-gray-200"
+                        }`}
+                      >
+                        {/* Card Header */}
+                        <div className="p-6 pb-4">
+                          <div className="flex items-start justify-between mb-4">
+                            <div className="flex items-center space-x-3">
+                              <div className={`w-12 h-12 rounded-xl flex items-center justify-center font-bold text-lg ${
+                                darkMode 
+                                  ? "bg-gradient-to-br from-blue-500 to-purple-600 text-white" 
+                                  : "bg-gradient-to-br from-blue-500 to-purple-600 text-white"
+                              }`}>
+                                {getInitials(workspace.name)}
+                              </div>
+                              <div>
+                                <h3 className="text-lg font-bold line-clamp-1">{workspace.name}</h3>
+                                <p className={`text-sm ${darkMode ? "text-slate-400" : "text-slate-500"}`}>
                                   {formatDate(workspace.createdAt)}
-                                </div>
-                              </td>
-                              <td className="px-6 py-4 whitespace-nowrap">
-                                <div className="text-sm">
-                                  {workspace.members.length} members
-                                </div>
-                              </td>
-                              <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                                <div className="flex justify-end space-x-2">
+                                </p>
+                              </div>
+                            </div>
+                            
+                            {/* Actions Dropdown */}
+                            <div className="relative group/actions">
+                              <button className={`p-2 rounded-lg transition-colors ${
+                                darkMode 
+                                  ? "hover:bg-slate-700 text-slate-400 hover:text-white" 
+                                  : "hover:bg-gray-100 text-gray-400 hover:text-gray-600"
+                              }`}>
+                                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z" />
+                                </svg>
+                              </button>
+                              
+                              {/* Dropdown Menu */}
+                              <div className={`absolute right-0 top-full mt-2 w-48 rounded-lg shadow-xl opacity-0 invisible group-hover/actions:opacity-100 group-hover/actions:visible transition-all duration-200 z-10 ${
+                                darkMode ? "bg-slate-800 border border-slate-700" : "bg-white border border-gray-200"
+                              }`}>
+                                <div className="py-2">
                                   <button
-                                    onClick={() => handleOpenViewModal(workspace)}
-                                    className={`p-1 rounded-md ${darkMode ? "hover:bg-slate-700 text-blue-400" : "hover:bg-blue-100 text-blue-600"}`}
-                                    title="View"
+                                    onClick={() => handleOpenViewModal(workspace.id)}
+                                    className={`w-full flex items-center px-4 py-2 text-sm transition-colors ${
+                                      darkMode 
+                                        ? "text-slate-300 hover:bg-slate-700 hover:text-white" 
+                                        : "text-gray-700 hover:bg-gray-100"
+                                    }`}
+                                    disabled={isProcessing}
                                   >
-                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
                                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
                                     </svg>
+                                    View Details
                                   </button>
                                   <button
                                     onClick={() => handleOpenEditModal(workspace)}
-                                    className={`p-1 rounded-md ${darkMode ? "hover:bg-slate-700 text-yellow-400" : "hover:bg-yellow-100 text-yellow-600"}`}
-                                    title="Edit"
+                                    className={`w-full flex items-center px-4 py-2 text-sm transition-colors ${
+                                      darkMode 
+                                        ? "text-slate-300 hover:bg-slate-700 hover:text-white" 
+                                        : "text-gray-700 hover:bg-gray-100"
+                                    }`}
                                   >
-                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                                     </svg>
+                                    Edit
                                   </button>
                                   <button
                                     onClick={() => handleOpenDeleteModal(workspace)}
-                                    className={`p-1 rounded-md ${darkMode ? "hover:bg-slate-700 text-red-400" : "hover:bg-red-100 text-red-600"}`}
-                                    title="Delete"
+                                    className={`w-full flex items-center px-4 py-2 text-sm transition-colors ${
+                                      darkMode 
+                                        ? "text-red-400 hover:bg-red-900/20 hover:text-red-300" 
+                                        : "text-red-600 hover:bg-red-50"
+                                    }`}
                                   >
-                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                                     </svg>
+                                    Delete
                                   </button>
                                 </div>
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
+                              </div>
+                            </div>
+                          </div>
+                          
+                          {/* Description */}
+                          <p className={`text-sm line-clamp-2 mb-4 ${darkMode ? "text-slate-300" : "text-slate-600"}`}>
+                            {workspace.description || "No description provided."}
+                          </p>
+                        </div>
+
+                        {/* Card Footer */}
+                        <div className={`px-6 py-4 border-t ${darkMode ? "border-slate-700 bg-slate-900/50" : "border-gray-200 bg-gray-50/50"}`}>
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center space-x-2">
+                              <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-medium ${
+                                darkMode ? "bg-blue-500 text-white" : "bg-blue-500 text-white"
+                              }`}>
+                                {getInitials(workspace.owner?.name || workspace.owner?.email || 'U')}
+                              </div>
+                              <span className={`text-sm ${darkMode ? "text-slate-400" : "text-slate-500"}`}>
+                                {workspace.owner?.id === user?.id ? 'You' : (workspace.owner?.name || 'Unknown')}
+                              </span>
+                            </div>
+                            
+                            <div className="flex items-center space-x-1">
+                              <svg xmlns="http://www.w3.org/2000/svg" className={`h-4 w-4 ${darkMode ? "text-slate-400" : "text-slate-500"}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197m13.5-9a2.5 2.5 0 11-5 0 2.5 2.5 0 015 0z" />
+                              </svg>
+                              <span className={`text-sm ${darkMode ? "text-slate-400" : "text-slate-500"}`}>
+                                {workspace.members?.length || 0}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Hover overlay */}
+                        <div className={`absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none ${
+                          darkMode 
+                            ? "bg-gradient-to-t from-blue-900/10 to-transparent" 
+                            : "bg-gradient-to-t from-blue-50/50 to-transparent"
+                        }`}></div>
+                      </div>
+                    ))}
                   </div>
                 )}
               </>
@@ -558,7 +615,7 @@ export default function WorkspacePage() {
                       ? "bg-slate-700 border-slate-600 text-white focus:ring-blue-500" 
                       : "bg-white border-slate-300 text-slate-900 focus:ring-blue-500"
                   }`}
-                  placeholder="Enter workspace title"                  
+                  placeholder="Enter workspace title"
                 />
               </div>
               
@@ -624,7 +681,7 @@ export default function WorkspacePage() {
           <div className={`w-full max-w-2xl p-6 rounded-lg shadow-xl ${
             darkMode ? "bg-slate-800 text-white" : "bg-white text-slate-800"
           }`}>
-            <div className="flex justify-between items-center mb-4">
+            <div className="flex justify-between items-center mb-6">
               <h3 className="text-xl font-semibold">Workspace Details</h3>
               <button 
                 onClick={() => setShowViewModal(false)}
@@ -636,66 +693,102 @@ export default function WorkspacePage() {
               </button>
             </div>
             
-            <div className="space-y-4">
-              <div>
-                <h4 className={`text-sm font-medium ${darkMode ? "text-slate-400" : "text-slate-500"}`}>
-                  Title
-                </h4>
-                <p className="text-lg font-medium">{currentWorkspace.name}</p>
+            <div className="space-y-6">
+              {/* Header with icon */}
+              <div className="flex items-center space-x-4">
+                <div className={`w-16 h-16 rounded-2xl flex items-center justify-center font-bold text-xl ${
+                  darkMode 
+                    ? "bg-gradient-to-br from-blue-500 to-purple-600 text-white" 
+                    : "bg-gradient-to-br from-blue-500 to-purple-600 text-white"
+                }`}>
+                  {getInitials(currentWorkspace.name)}
+                </div>
+                <div>
+                  <h4 className="text-2xl font-bold">{currentWorkspace.name}</h4>
+                  <p className={`${darkMode ? "text-slate-400" : "text-slate-500"}`}>
+                    Created {formatDate(currentWorkspace.createdAt)}
+                  </p>
+                </div>
               </div>
               
+              {/* Description */}
               <div>
-                <h4 className={`text-sm font-medium ${darkMode ? "text-slate-400" : "text-slate-500"}`}>
+                <h5 className={`text-sm font-medium mb-2 ${darkMode ? "text-slate-400" : "text-slate-500"}`}>
                   Description
-                </h4>
+                </h5>
                 <p className={`${darkMode ? "text-slate-300" : "text-slate-700"}`}>
                   {currentWorkspace.description || "No description provided."}
                 </p>
               </div>
               
+              {/* Owner Info */}
               <div>
-                <h4 className={`text-sm font-medium ${darkMode ? "text-slate-400" : "text-slate-500"}`}>
-                  Created By
-                </h4>
-                <p className={`${darkMode ? "text-slate-300" : "text-slate-700"}`}>
-                  {currentWorkspace.owner === user?.id ? 'You' : currentWorkspace.owner}
-                </p>
-              </div>
-              
-              <div>
-                <h4 className={`text-sm font-medium ${darkMode ? "text-slate-400" : "text-slate-500"}`}>
-                  Created At
-                </h4>
-                <p className={`${darkMode ? "text-slate-300" : "text-slate-700"}`}>
-                  {formatDate(currentWorkspace.createdAt)}
-                </p>
-              </div>
-              
-              <div>
-                <h4 className={`text-sm font-medium ${darkMode ? "text-slate-400" : "text-slate-500"}`}>
-                  Members
-                </h4>
-                <p className={`${darkMode ? "text-slate-300" : "text-slate-700"}`}>
-                  {currentWorkspace.members.length} member(s)
-                </p>
-                <div className="mt-2 flex flex-wrap gap-2">
-                  {currentWorkspace.members.map((memberId) => (
-                    <div 
-                      key={memberId}
-                      className={`px-3 py-1 rounded-full text-sm ${
-                        darkMode 
-                          ? "bg-slate-700 text-slate-300" 
-                          : "bg-slate-200 text-slate-700"
-                      }`}
-                    >
-                      {memberId === user?.id ? 'You' : memberId}
-                    </div>
-                  ))}
+                <h5 className={`text-sm font-medium mb-2 ${darkMode ? "text-slate-400" : "text-slate-500"}`}>
+                  Owner
+                </h5>
+                <div className="flex items-center space-x-3">
+                  <div className={`w-10 h-10 rounded-full flex items-center justify-center font-medium ${
+                    darkMode ? "bg-blue-500 text-white" : "bg-blue-500 text-white"
+                  }`}>
+                    {getInitials(currentWorkspace.owner?.name || currentWorkspace.owner?.email || 'U')}
+                  </div>
+                  <div>
+                    <p className={`font-medium ${darkMode ? "text-slate-300" : "text-slate-700"}`}>
+                      {currentWorkspace.owner?.name || 'Unknown'}
+                    </p>
+                    <p className={`text-sm ${darkMode ? "text-slate-400" : "text-slate-500"}`}>
+                      {currentWorkspace.owner?.email}
+                    </p>
+                  </div>
                 </div>
+              </div>
+              
+              {/* Members */}
+              <div>
+                <h5 className={`text-sm font-medium mb-3 ${darkMode ? "text-slate-400" : "text-slate-500"}`}>
+                  Members ({currentWorkspace.members?.length || 0})
+                </h5>
+                {currentWorkspace.members && currentWorkspace.members.length > 0 ? (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    {currentWorkspace.members.map((member) => (
+                      <div 
+                        key={member.id}
+                        className={`flex items-center space-x-3 p-3 rounded-lg ${
+                          darkMode ? "bg-slate-700" : "bg-gray-100"
+                        }`}
+                      >
+                        <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium ${
+                          darkMode ? "bg-blue-500 text-white" : "bg-blue-500 text-white"
+                        }`}>
+                          {getInitials(member.name || member.email)}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className={`font-medium truncate ${darkMode ? "text-slate-300" : "text-slate-700"}`}>
+                            {member.name}
+                            {member.id === user?.id && (
+                              <span className={`ml-2 text-xs px-2 py-1 rounded-full ${
+                                darkMode ? "bg-blue-600 text-blue-100" : "bg-blue-100 text-blue-800"
+                              }`}>
+                                You
+                              </span>
+                            )}
+                          </p>
+                          <p className={`text-sm truncate ${darkMode ? "text-slate-400" : "text-slate-500"}`}>
+                            {member.email}
+                          </p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className={`text-sm ${darkMode ? "text-slate-400" : "text-slate-500"}`}>
+                    No members found.
+                  </p>
+                )}
               </div>
             </div>
             
-            <div className="mt-6 flex justify-end">
+            <div className="mt-8 flex justify-end space-x-3">
               <button
                 onClick={() => setShowViewModal(false)}
                 className={`px-4 py-2 rounded-lg ${
@@ -705,6 +798,15 @@ export default function WorkspacePage() {
                 }`}
               >
                 Close
+              </button>
+              <button
+                onClick={() => {
+                  setShowViewModal(false);
+                  handleOpenEditModal(currentWorkspace);
+                }}
+                className="px-4 py-2 rounded-lg bg-blue-600 text-white hover:bg-blue-700"
+              >
+                Edit Workspace
               </button>
             </div>
           </div>
@@ -718,7 +820,7 @@ export default function WorkspacePage() {
             darkMode ? "bg-slate-800 text-white" : "bg-white text-slate-800"
           }`}>
             <div className="flex justify-between items-center mb-4">
-              <h3 className="text-xl font-semibold">Delete Workspace</h3>
+              <h3 className="text-xl font-semibold text-red-600">Delete Workspace</h3>
               <button 
                 onClick={() => setShowDeleteModal(false)}
                 className="text-gray-400 hover:text-gray-500"
@@ -730,8 +832,16 @@ export default function WorkspacePage() {
             </div>
             
             <div className="mb-6">
-              <p className={`${darkMode ? "text-slate-300" : "text-slate-700"}`}>
-                Are you sure you want to delete the workspace "<span className="font-semibold">{currentWorkspace.name}</span>"? This action cannot be undone.
+              <div className="flex items-center justify-center w-16 h-16 mx-auto mb-4 bg-red-100 rounded-full">
+                <svg xmlns="http://www.w3.org/2000/svg" className="w-8 h-8 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z" />
+                </svg>
+              </div>
+              <p className={`text-center ${darkMode ? "text-slate-300" : "text-slate-700"}`}>
+                Are you sure you want to delete "<span className="font-semibold">{currentWorkspace.name}</span>"?
+              </p>
+              <p className={`text-center text-sm mt-2 ${darkMode ? "text-slate-400" : "text-slate-500"}`}>
+                This action cannot be undone. All data associated with this workspace will be permanently removed.
               </p>
             </div>
             
