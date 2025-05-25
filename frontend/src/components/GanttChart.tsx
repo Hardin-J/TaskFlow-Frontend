@@ -4,45 +4,46 @@ import { useRouter } from "next/navigation";
 import { format, parseISO, differenceInDays, addDays, eachDayOfInterval, getMonth, getYear } from "date-fns";
 import { getProjectTasks } from "@/services/Task.service";
 
-interface TaskActivity {
-  id: string;
-  taskId: string;
-  userId: string;
-  type: string;
-  oldValue?: string;
-  newValue?: string;
-  content?: string;
-  timestamp: string;
-}
-
+// Updated interfaces to match backend structure
 interface Task {
   id: string;
-  projectId: string;
   title: string;
-  description: string;
-  assignedTo: string;
-  milestone: string;
-  status: string;
-  category: string;
-  priority: string;
-  targetDate: string;
-  createdBy: string;
-  createdAt: string;
+  description?: string;
+  status: "todo" | "in_progress" | "in_review" | "completed";
+  priority: "low" | "medium" | "high";
+  dueDate?: string; // ISO date string
+  createdAt: string; // ISO date string
+  completedAt?: string; // ISO date string
+  assignee?: {
+    id: string;
+    name: string;
+    email: string;
+  };
+  createdBy: {
+    id: string;
+    name: string;
+    email: string;
+  };
+  parentTask?: {
+    id: string;
+    title: string;
+  };
+  subtasks?: Task[];
+  project: {
+    id: string;
+    name: string;
+  };
 }
 
 interface User {
   id: string;
   name: string;
   email: string;
-  role: string;
-  department: string;
 }
 
-type TaskWithActivities = Task & {
-  activities: TaskActivity[];
+type TaskWithDates = Task & {
   startDate: string;
   endDate: string;
-  user?: User;
 };
 
 interface GanttChartProps {
@@ -58,8 +59,7 @@ const DAY_WIDTH = 30; // pixels per day
 export default function GanttChart({ workspaceId, projectId, users, darkMode }: GanttChartProps) {
   const router = useRouter();
   const [tasks, setTasks] = useState<Task[]>([]);
-  const [activities, setActivities] = useState<TaskActivity[]>([]);
-  const [tasksWithDates, setTasksWithDates] = useState<TaskWithActivities[]>([]);
+  const [tasksWithDates, setTasksWithDates] = useState<TaskWithDates[]>([]);
   const [timeRange, setTimeRange] = useState<Date[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string>("");
@@ -74,20 +74,16 @@ export default function GanttChart({ workspaceId, projectId, users, darkMode }: 
         const response = await getProjectTasks(workspaceId, projectId);
         
         if (response?.data?.tasks) {
-          setTasks(response.data.tasks);
-          // If activities are included in the response, set them
-          if (response.data.activities) {
-            setActivities(response.data.activities);
-          }
+          // Filter out subtasks to only show parent tasks in Gantt
+          const parentTasks = response.data.tasks.filter((task: Task) => !task.parentTask);
+          setTasks(parentTasks);
         } else {
           setTasks([]);
-          setActivities([]);
         }
       } catch (err: any) {
         console.error('Error fetching tasks:', err);
         setError(err.message || 'Failed to fetch tasks');
         setTasks([]);
-        setActivities([]);
       } finally {
         setLoading(false);
       }
@@ -98,35 +94,27 @@ export default function GanttChart({ workspaceId, projectId, users, darkMode }: 
     }
   }, [workspaceId, projectId]);
 
-  // Process tasks with their activities to determine start and end dates
+  // Process tasks to determine start and end dates
   useEffect(() => {
     if (tasks.length > 0) {
-      const processedTasks: TaskWithActivities[] = tasks.map(task => {
-        // Get activities for this task
-        const taskActivities = activities.filter(activity => activity.taskId === task.id);
+      const processedTasks: TaskWithDates[] = tasks.map(task => {
+        // Use createdAt as start date
+        const startDate = task.createdAt;
 
-        // Sort activities by timestamp
-        taskActivities.sort((a, b) =>
-          new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
-        );
-
-        // Find the earliest activity or use createdAt as fallback
-        const startDate = taskActivities.length > 0
-          ? taskActivities[0].timestamp
-          : task.createdAt;
-
-        // Use target date as end date
-        const endDate = task.targetDate;
-
-        // Find assigned user data
-        const assignedUser = users.find(user => user.id === task.assignedTo);
+        // Use dueDate as end date, fallback to 7 days from start if no due date
+        let endDate: string;
+        if (task.dueDate) {
+          endDate = task.dueDate;
+        } else {
+          // If no due date, estimate end date based on priority
+          const daysToAdd = task.priority === 'high' ? 3 : task.priority === 'medium' ? 7 : 14;
+          endDate = addDays(parseISO(task.createdAt), daysToAdd).toISOString();
+        }
 
         return {
           ...task,
-          activities: taskActivities,
           startDate,
-          endDate,
-          user: assignedUser
+          endDate
         };
       });
 
@@ -136,10 +124,10 @@ export default function GanttChart({ workspaceId, projectId, users, darkMode }: 
       setTasksWithDates([]);
       setTimeRange([]);
     }
-  }, [tasks, activities, users]);
+  }, [tasks]);
 
   // Generate an array of dates for the chart timeline
-  const generateTimeRange = (processedTasks: TaskWithActivities[]) => {
+  const generateTimeRange = (processedTasks: TaskWithDates[]) => {
     if (processedTasks.length === 0) return;
 
     // Find earliest start date and latest end date
@@ -169,7 +157,7 @@ export default function GanttChart({ workspaceId, projectId, users, darkMode }: 
   };
 
   // Calculate bar position and width based on dates and DAY_WIDTH
-  const calculateBarPosition = (task: TaskWithActivities): { left: number; width: number } => {
+  const calculateBarPosition = (task: TaskWithDates): { left: number; width: number } => {
     if (timeRange.length === 0) return { left: 0, width: 0 };
 
     const chartStartDate = timeRange[0];
@@ -188,19 +176,33 @@ export default function GanttChart({ workspaceId, projectId, users, darkMode }: 
     };
   };
 
-  // Get status color
-  const getStatusColor = (status: string): string => {
-    switch(status.toLowerCase()) {
+  // Get status color - updated to match backend enum values
+  const getStatusColor = (status: Task['status']): string => {
+    switch(status) {
       case 'completed':
         return 'bg-green-500';
-      case 'in progress':
+      case 'in_progress':
         return 'bg-blue-500';
-      case 'not started':
+      case 'in_review':
+        return 'bg-yellow-500';
+      case 'todo':
         return 'bg-gray-400';
-      case 'delayed':
-        return 'bg-red-500';
       default:
         return 'bg-purple-500';
+    }
+  };
+
+  // Get priority color
+  const getPriorityColor = (priority: Task['priority']): string => {
+    switch(priority) {
+      case 'high':
+        return 'text-red-500';
+      case 'medium':
+        return 'text-yellow-500';
+      case 'low':
+        return 'text-green-500';
+      default:
+        return 'text-gray-500';
     }
   };
 
@@ -210,6 +212,22 @@ export default function GanttChart({ workspaceId, projectId, users, darkMode }: 
       return format(parseISO(dateString), 'MMM dd');
     } catch (error) {
       return 'Invalid Date';
+    }
+  };
+
+  // Get readable status label
+  const getStatusLabel = (status: Task['status']): string => {
+    switch(status) {
+      case 'todo':
+        return 'To Do';
+      case 'in_progress':
+        return 'In Progress';
+      case 'in_review':
+        return 'In Review';
+      case 'completed':
+        return 'Completed';
+      default:
+        return status;
     }
   };
 
@@ -334,7 +352,7 @@ export default function GanttChart({ workspaceId, projectId, users, darkMode }: 
       </div>
 
       <div className="overflow-x-auto">
-        {/* Color Labels (Legend) */}
+        {/* Color Labels (Legend) - Updated to match backend status */}
         <div className={`mb-4 p-3 rounded-lg ${darkMode ? "bg-slate-800" : "bg-gray-100"}`}>
           <h4 className="font-semibold text-sm mb-2">Task Status Legend:</h4>
           <div className="flex flex-wrap gap-x-4 gap-y-2 text-sm">
@@ -345,13 +363,10 @@ export default function GanttChart({ workspaceId, projectId, users, darkMode }: 
               <span className="w-3 h-3 rounded-full bg-blue-500 mr-2"></span> In Progress
             </div>
             <div className="flex items-center">
-              <span className="w-3 h-3 rounded-full bg-gray-400 mr-2"></span> Not Started
+              <span className="w-3 h-3 rounded-full bg-yellow-500 mr-2"></span> In Review
             </div>
             <div className="flex items-center">
-              <span className="w-3 h-3 rounded-full bg-red-500 mr-2"></span> Delayed
-            </div>
-            <div className="flex items-center">
-              <span className="w-3 h-3 rounded-full bg-purple-500 mr-2"></span> Other Status
+              <span className="w-3 h-3 rounded-full bg-gray-400 mr-2"></span> To Do
             </div>
           </div>
         </div>
@@ -415,8 +430,14 @@ export default function GanttChart({ workspaceId, projectId, users, darkMode }: 
               >
                 <div className="w-64 flex-shrink-0 pr-4">
                   <div className="font-medium truncate">{task.title}</div>
-                  <div className="text-xs truncate text-gray-500">
-                    {task.user?.name || 'Unassigned'} • {task.priority}
+                  <div className="text-xs truncate text-gray-500 flex items-center gap-2">
+                    <span>{task.assignee?.name || 'Unassigned'}</span>
+                    <span className={`font-medium ${getPriorityColor(task.priority)}`}>
+                      {task.priority.toUpperCase()}
+                    </span>
+                    {task.subtasks && task.subtasks.length > 0 && (
+                      <span className="text-blue-500">({task.subtasks.length} subtasks)</span>
+                    )}
                   </div>
                 </div>
 
@@ -428,6 +449,7 @@ export default function GanttChart({ workspaceId, projectId, users, darkMode }: 
                       left: `${calculateBarPosition(task).left}px`,
                       width: `${calculateBarPosition(task).width}px`,
                     }}
+                    title={`${task.title} - ${getStatusLabel(task.status)}`}
                   >
                     <span className="truncate pr-1">{formatDate(task.startDate)}</span>
                     <span className="truncate pl-1">{formatDate(task.endDate)}</span>
