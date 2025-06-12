@@ -184,31 +184,6 @@ export default function Login() {
           : "bg-gradient-to-br from-sky-50 via-white to-blue-50"
         } p-6`}
     >
-      {/* Toast container */}
-      <Toaster
-        position="top-right"
-        toastOptions={{
-          duration: 4000,
-          style: {
-            background: darkMode ? '#1e293b' : '#ffffff',
-            color: darkMode ? '#f8fafc' : '#0f172a',
-            border: darkMode ? '1px solid #334155' : '1px solid #e2e8f0',
-          },
-          success: {
-            iconTheme: {
-              primary: '#10b981',
-              secondary: 'white',
-            },
-          },
-          error: {
-            iconTheme: {
-              primary: '#ef4444',
-              secondary: 'white',
-            },
-          },
-        }}
-      />
-
       {/* Decorative elements */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
         <div className="absolute -top-40 -right-40 w-80 h-80 rounded-full bg-gradient-to-br from-blue-400/10 to-teal-400/20 blur-3xl"></div>

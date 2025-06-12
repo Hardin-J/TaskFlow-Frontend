@@ -30,7 +30,19 @@ export async function getWorkspaceProjects(wrkId: string): Promise<any> {
         throw new Error(message);
     }
 }
-
+export async function getTasksByProject(workspaceId: string, projectId: string): Promise<any> {
+    try {
+        const response = await axiosInstance.get<any>(`${PROJ_URL}/${workspaceId}/projects/${projectId}/tasks`);
+        return response;
+    } catch (error: any) {
+        console.error('Error in getTasksByProject:', error);
+        const message = error.response?.data?.message ||
+                       error.response?.data?.error ||
+                       error.message ||
+                       'Fetching tasks for project failed';
+        throw new Error(message);
+    }
+}
 // Add new project
 export async function createProject(workspaceId: string, project: any): Promise<any> {
     try {

@@ -1,7 +1,7 @@
 import axios from 'axios';
 
-const AUTH_API_URL = 'http://localhost:4000/auth'; // Replace with your actual API URL
-const USER_API_URL = 'http://localhost:4000/users'; // Replace with your actual API URL
+const AUTH_API_URL = 'http://localhost:4000/auth'; 
+const USER_API_URL = 'http://localhost:4000/users'; 
 
 interface RegisterUserInput {
     email: string;
@@ -24,6 +24,7 @@ interface LoginSuccessResponse {
     user: {
         id: number;
         email: string;
+        name: string;
     };
     token: string;
 }

@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import toast, { Toaster } from "react-hot-toast";
 import Sidebar from "../../components/Sidebar";
 import Topbar from "../../components/Topbar";
+import { jwtDecode } from "jwt-decode"; // Import jwt-decode
 
 // Import your backend services
 import { getAllWorkspaces } from "../../services/Workspace.service";
@@ -17,6 +18,19 @@ interface User {
   role?: string;
   department?: string;
   lastLogin?: string;
+}
+
+// Interface for the expected JWT payload (customize as needed)
+interface DecodedJwtPayload {
+  id?: string;
+  sub?: string; // Standard subject claim, often used for user ID
+  email?: string;
+  name?: string;
+  preferred_username?: string;
+  given_name?: string;
+  role?: string;
+  // Add other claims you expect, like iat, exp
+  [key: string]: any; // Allow other properties
 }
 
 interface Task {
@@ -79,74 +93,115 @@ export default function Dashboard() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    // Check if user is logged in
-    const userData = localStorage.getItem("user");
-    if (!userData) {
+    const token = localStorage.getItem("token");
+    const storedUserString = localStorage.getItem("user");
+
+    if (!token) {
+      // No token, redirect to login
+      // toast.error("Authentication required. Please log in."); // Optional: show toast
       router.push("/login");
       return;
     }
 
     try {
-      const parsedUser = JSON.parse(userData);
-      setUser(parsedUser);
+      const decodedToken = jwtDecode<DecodedJwtPayload>(token);
 
-      // Fetch data
-      fetchDashboardData(parsedUser);
+      let baseUser: Partial<User> = {};
+      if (storedUserString) {
+        try {
+          baseUser = JSON.parse(storedUserString);
+        } catch (parseError) {
+          console.error("Error parsing stored user data:", parseError);
+          // Potentially corrupted stored user data, proceed with token data primarily
+        }
+      }
+
+      // Construct the user object
+      // Prioritize token for name, then ID and email.
+      // Fallback to storedUserString or defaults.
+      const userNameFromToken =
+        decodedToken.name ||
+        decodedToken.preferred_username ||
+        decodedToken.given_name;
+      const userEmailFromTokenOrStorage = decodedToken.email || baseUser.email;
+
+      const finalName =
+        userNameFromToken ||
+        (userEmailFromTokenOrStorage
+          ? userEmailFromTokenOrStorage.split("@")[0]
+          : "User");
+
+      const currentUser: User = {
+        id: String(
+          decodedToken.id || decodedToken.sub || baseUser.id || "unknown-id"
+        ),
+        email: userEmailFromTokenOrStorage || "unknown-email",
+        name: finalName,
+        role: decodedToken.role || baseUser.role,
+        department: baseUser.department, // These are less likely in token
+        lastLogin: baseUser.lastLogin, // These are less likely in token
+      };
+
+      // Validate essential fields
+      if (
+        currentUser.id === "unknown-id" ||
+        currentUser.email === "unknown-email"
+      ) {
+        console.error(
+          "Critical user information (ID or email) missing from token and storage."
+        );
+        toast.error("User identification failed. Please log in again.");
+        localStorage.removeItem("token");
+        localStorage.removeItem("user");
+        router.push("/login");
+        return;
+      }
+
+      setUser(currentUser);
+      fetchDashboardData(currentUser);
     } catch (err) {
-      console.error("Error parsing user data:", err);
+      console.error("Error decoding token or processing user data:", err);
+      toast.error("Session invalid or expired. Please log in again.");
+      localStorage.removeItem("token");
+      localStorage.removeItem("user"); // Clear potentially problematic stored user
       router.push("/login");
+      return; // Important to return after redirect
     }
 
-    // Check if dark mode preference exists in local storage
+    // Dark mode preference
     const savedDarkMode = localStorage.getItem("darkMode") === "true";
     setDarkMode(savedDarkMode);
     document.documentElement.classList.toggle("dark", savedDarkMode);
-  }, [router]);
+  }, [router]); // router is the main dependency here
 
   useEffect(() => {
-    // Save dark mode preference to local storage
     localStorage.setItem("darkMode", darkMode.toString());
     document.documentElement.classList.toggle("dark", darkMode);
   }, [darkMode]);
 
   const fetchDashboardData = async (currentUser: User) => {
+    // ... (rest of the function remains the same)
     setIsLoading(true);
     setError(null);
 
     try {
-      // Fetch all workspaces
       const workspacesResponse = await getAllWorkspaces();
       const workspacesData = workspacesResponse.data || [];
-      console.log("Workspaces fetched:", workspacesData);
-
       const allProjectsData: Project[] = [];
       const allTasksData: Task[] = [];
 
-      // For each workspace, fetch its projects and tasks
       for (const workspace of workspacesData) {
         try {
-          // Fetch projects for this workspace
           const projectsResponse = await getWorkspaceProjects(workspace.id);
           const workspaceProjects = projectsResponse.data || [];
-          console.log(
-            `Projects for workspace ${workspace.id}:`,
-            workspaceProjects
-          );
-
-          // Add workspace info to each project
           const projectsWithWorkspace = workspaceProjects.map(
             (project: any) => ({
               ...project,
-              workspace: {
-                id: workspace.id,
-                name: workspace.name,
-              },
+              workspace: { id: workspace.id, name: workspace.name },
             })
           );
-
           allProjectsData.push(...projectsWithWorkspace);
 
-          // For each project, fetch its tasks
           for (const project of workspaceProjects) {
             try {
               const tasksResponse = await getProjectTasks(
@@ -154,21 +209,14 @@ export default function Dashboard() {
                 project.id
               );
               const projectTasks = tasksResponse.data || [];
-              console.log(`Tasks for project ${project.id}:`, projectTasks);
-
-              // Add project and workspace info to each task
               const tasksWithProjectInfo = projectTasks.map((task: any) => ({
                 ...task,
                 project: {
                   id: project.id,
                   name: project.name,
-                  workspace: {
-                    id: workspace.id,
-                    name: workspace.name,
-                  },
+                  workspace: { id: workspace.id, name: workspace.name },
                 },
               }));
-
               allTasksData.push(...tasksWithProjectInfo);
             } catch (taskError) {
               console.warn(
@@ -185,38 +233,16 @@ export default function Dashboard() {
         }
       }
 
-      // Update state with fetched data
       setWorkspaces(workspacesData);
       setAllProjects(allProjectsData);
       setAllTasks(allTasksData);
 
-      console.log("All data loaded:", {
-        workspaces: workspacesData.length,
-        projects: allProjectsData.length,
-        tasks: allTasksData.length,
-      });
-
-      // Debug: Log task assignees to understand data structure
-      console.log(
-        "Task assignees debug:",
-        allTasksData.map((task) => ({
-          taskId: task.id,
-          title: task.title,
-          assignee: task.assignee,
-          assigneeId: task.assignee?.id,
-          currentUserId: currentUser.id,
-        }))
-      );
-
-      // Calculate notification count (pending tasks + upcoming deadlines)
       const pendingTasks = getPendingTasks(allTasksData, currentUser);
-      const upcomingDeadlines = getUpcomingDeadlines(allTasksData, currentUser);
-
-      console.log("Notification calculation:", {
-        pendingTasks: pendingTasks.length,
-        upcomingDeadlines: upcomingDeadlines.length,
-        total: pendingTasks.length + upcomingDeadlines.length,
-      });
+      const upcomingDeadlines = getUpcomingDeadlines(
+        allTasksData,
+        currentUser,
+        workspacesData
+      );
 
       setNotificationCount(pendingTasks.length + upcomingDeadlines.length);
     } catch (err) {
@@ -228,75 +254,54 @@ export default function Dashboard() {
     }
   };
 
-  // Helper function to get pending tasks
+  // ... (rest of your helper functions: getPendingTasks, getRecentTasks, etc.)
+
   const getPendingTasks = (tasks: Task[], currentUser: User) => {
     return tasks.filter((task) => {
-      // Check multiple ways the assignee might be stored
       const assigneeId = task.assignee?.id || (task as any).assigneeId;
-      const isAssigned = assigneeId === currentUser.id;
-      const isNotCompleted = task.status !== "completed";
-
-      console.log("Pending task check:", {
-        taskId: task.id,
-        title: task.title,
-        assigneeId,
-        currentUserId: currentUser.id,
-        isAssigned,
-        status: task.status,
-        isNotCompleted,
-      });
-
-      return isAssigned && isNotCompleted;
+      return (
+        String(assigneeId) === String(currentUser.id) &&
+        task.status !== "completed"
+      ); // Ensure ID comparison is robust
     });
   };
 
-  // Get recent tasks (tasks assigned to current user, sorted by most recent)
   const getRecentTasks = () => {
     if (!user) return [];
-
     return allTasks
       .filter((task) => {
-        // Check if user has access to this task through workspace/project membership
         const workspace = workspaces.find(
           (ws) => ws.id === task.project.workspace.id
         );
         if (!workspace) return false;
-
-        const isWorkspaceOwner = workspace.owner.id === user.id;
+        const isWorkspaceOwner = String(workspace.owner.id) === String(user.id);
         const isWorkspaceMember = workspace.members?.some(
-          (member) => member.id === user.id
+          (member) => String(member.id) === String(user.id)
         );
-
-        // User has access if they own the workspace or are a member
         return isWorkspaceOwner || isWorkspaceMember;
       })
       .sort(
         (a, b) =>
           new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
       )
-      .slice(0, 5); // Show more recent tasks since we're not filtering by assignee
+      .slice(0, 5);
   };
 
-  // Get projects in progress for the user
   const getProjectsInProgress = () => {
     if (!user) return [];
-
     return allProjects
       .filter((project) => {
-        // Check if user is a member or owner of the workspace, and project is active
         const workspace = workspaces.find(
           (ws) => ws.id === project.workspace.id
         );
         if (!workspace) return false;
-
         const isMember = project.members?.some(
-          (member) => member.id === user.id
+          (member) => String(member.id) === String(user.id)
         );
-        const isWorkspaceOwner = workspace.owner.id === user.id;
+        const isWorkspaceOwner = String(workspace.owner.id) === String(user.id);
         const isWorkspaceMember = workspace.members?.some(
-          (member) => member.id === user.id
+          (member) => String(member.id) === String(user.id)
         );
-
         return (
           (isMember || isWorkspaceOwner || isWorkspaceMember) &&
           project.status === "active"
@@ -311,10 +316,12 @@ export default function Dashboard() {
       .slice(0, 3);
   };
 
-  // Get upcoming deadlines (tasks with due dates approaching)
-  const getUpcomingDeadlines = (tasks = allTasks, currentUser = user) => {
+  const getUpcomingDeadlines = (
+    tasks = allTasks,
+    currentUser = user,
+    currentWorkspaces = workspaces
+  ) => {
     if (!currentUser) return [];
-
     const today = new Date();
     const twoWeeksFromNow = new Date();
     twoWeeksFromNow.setDate(today.getDate() + 14);
@@ -322,60 +329,27 @@ export default function Dashboard() {
     return tasks
       .filter((task) => {
         if (!task.dueDate || task.status === "completed") return false;
-
         const dueDate = new Date(task.dueDate);
         if (!(dueDate >= today && dueDate <= twoWeeksFromNow)) return false;
 
-        // Check if user has access to this task through workspace/project membership
-        const workspace = workspaces.find(
+        const workspace = currentWorkspaces.find(
           (ws) => ws.id === task.project.workspace.id
         );
         if (!workspace) return false;
-
-        const isWorkspaceOwner = workspace.owner.id === currentUser.id;
+        const isWorkspaceOwner =
+          String(workspace.owner.id) === String(currentUser.id);
         const isWorkspaceMember = workspace.members?.some(
-          (member) => member.id === currentUser.id
+          (member) => String(member.id) === String(currentUser.id)
         );
-
         return isWorkspaceOwner || isWorkspaceMember;
       })
       .sort(
         (a, b) =>
           new Date(a.dueDate!).getTime() - new Date(b.dueDate!).getTime()
       )
-      .slice(0, 5); // Show more upcoming deadlines
+      .slice(0, 5);
   };
 
-  const getUserAccessibleTasksCount = () => {
-    if (!user) return 0;
-    
-    return allTasks.filter(task => {
-      const workspace = workspaces.find(ws => ws.id === task.project.workspace.id);
-      if (!workspace) return false;
-      
-      const isWorkspaceOwner = workspace.owner.id === user.id;
-      const isWorkspaceMember = workspace.members?.some(member => member.id === user.id);
-      
-      return isWorkspaceOwner || isWorkspaceMember;
-    }).length;
-  };
-  const calculateNotificationCount = (allTasksData: Task[], currentUser: User) => {
-    // Get all incomplete tasks the user has access to
-    const incompleteTasks = allTasksData.filter(task => {
-      if (task.status === "completed") return false;
-      
-      const workspace = workspaces.find(ws => ws.id === task.project.workspace.id);
-      if (!workspace) return false;
-      
-      const isWorkspaceOwner = workspace.owner.id === currentUser.id;
-      const isWorkspaceMember = workspace.members?.some(member => member.id === currentUser.id);
-      
-      return isWorkspaceOwner || isWorkspaceMember;
-    });
-  }
-
-  
-  // Format date for display
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
     return new Intl.DateTimeFormat("en-US", {
@@ -385,7 +359,6 @@ export default function Dashboard() {
     }).format(date);
   };
 
-  // Map backend status to display status
   const getStatusDisplay = (status: string) => {
     const statusMap: { [key: string]: string } = {
       todo: "To Do",
@@ -396,7 +369,6 @@ export default function Dashboard() {
     return statusMap[status] || status;
   };
 
-  // Map backend priority to display priority
   const getPriorityDisplay = (priority: string) => {
     const priorityMap: { [key: string]: string } = {
       low: "Low",
@@ -406,12 +378,11 @@ export default function Dashboard() {
     return priorityMap[priority] || priority;
   };
 
-  // Get user's assigned tasks count
   const getUserAssignedTasksCount = () => {
     if (!user) return 0;
     return allTasks.filter((task) => {
       const assigneeId = task.assignee?.id || (task as any).assigneeId;
-      return assigneeId === user.id;
+      return String(assigneeId) === String(user.id);
     }).length;
   };
 
@@ -423,21 +394,17 @@ export default function Dashboard() {
           : "bg-gradient-to-br from-sky-50 via-white to-blue-50 text-gray-900"
       }`}
     >
-      {/* Sidebar Component */}
       <Sidebar
         darkMode={darkMode}
         sidebarCollapsed={sidebarCollapsed}
         setSidebarCollapsed={setSidebarCollapsed}
         user={user}
       />
-
-      {/* Main content area */}
       <div
-        className={`flex-1 ${
-          sidebarCollapsed ? "ml-20" : "ml-64"
-        } transition-all duration-300`}
+        className={`flex-1 flex flex-col ${
+          sidebarCollapsed ? "ml-20" : "ml-72"
+        } transition-all duration-300 overflow-hidden`}
       >
-        {/* Topbar Component */}
         <Topbar
           darkMode={darkMode}
           setDarkMode={setDarkMode}
@@ -446,42 +413,89 @@ export default function Dashboard() {
           notificationCount={notificationCount}
           user={user}
         />
-
-        {/* Main dashboard content */}
-        <main className="p-6">
+        <main className="flex-1 p-6 overflow-y-auto">
+          {/* Welcome message card */}
           <div
             className={`mb-6 p-6 rounded-xl ${
               darkMode
                 ? "bg-slate-800/50 border border-slate-700/50"
                 : "bg-white/80 border border-slate-200/50"
-            } backdrop-blur-sm shadow-md`}
+            } backdrop-blur-sm shadow-lg`}
           >
-            <h2 className="text-xl font-bold mb-4">
-              Welcome back, {user?.name}
-            </h2>
-            <p className={darkMode ? "text-slate-300" : "text-slate-600"}>
-              Start managing your projects and tasks efficiently!
-            </p>
-            <div className="mt-4 flex gap-6 text-sm">
-              <div
-                className={`${darkMode ? "text-slate-400" : "text-slate-600"}`}
-              >
-                <span className="font-medium">{workspaces.length}</span>{" "}
-                Workspaces
+            <div className="flex flex-col md:flex-row md:justify-between md:items-center">
+              <div className="mb-6 md:mb-0">
+                <h5 className="text-2xl lg:text-3xl font-bold">
+                  {/* Display name from user state, which is now sourced from token */}
+                  Welcome back, {user?.name || "User"}
+                </h5>
               </div>
-              <div
-                className={`${darkMode ? "text-slate-400" : "text-slate-600"}`}
-              >
-                <span className="font-medium">{allProjects.length}</span>{" "}
-                Projects
-              </div>
-              <div
-                className={`${darkMode ? "text-slate-400" : "text-slate-600"}`}
-              >
-                <span className="font-medium">
-                  {getUserAssignedTasksCount()}
-                </span>{" "}
-                Assigned Tasks
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 md:gap-4 w-full md:w-auto md:max-w-md lg:max-w-lg xl:max-w-xl">
+                <div
+                  className={`p-4 rounded-lg flex flex-col items-center justify-center text-center ${
+                    darkMode
+                      ? "bg-slate-700/40 hover:bg-slate-700/60 border border-slate-600/50"
+                      : "bg-sky-100/70 hover:bg-sky-200/90 border border-sky-200/80"
+                  } transition-all duration-200`}
+                >
+                  <span
+                    className={`text-3xl font-bold ${
+                      darkMode ? "text-sky-400" : "text-sky-600"
+                    }`}
+                  >
+                    {workspaces.length}
+                  </span>
+                  <span
+                    className={`text-xs mt-1 font-medium ${
+                      darkMode ? "text-slate-300" : "text-slate-500"
+                    }`}
+                  >
+                    Workspaces
+                  </span>
+                </div>
+                <div
+                  className={`p-4 rounded-lg flex flex-col items-center justify-center text-center ${
+                    darkMode
+                      ? "bg-slate-700/40 hover:bg-slate-700/60 border border-slate-600/50"
+                      : "bg-teal-100/70 hover:bg-teal-200/90 border border-teal-200/80"
+                  } transition-all duration-200`}
+                >
+                  <span
+                    className={`text-3xl font-bold ${
+                      darkMode ? "text-teal-400" : "text-teal-600"
+                    }`}
+                  >
+                    {allProjects.length}
+                  </span>
+                  <span
+                    className={`text-xs mt-1 font-medium ${
+                      darkMode ? "text-slate-300" : "text-slate-500"
+                    }`}
+                  >
+                    Total Projects
+                  </span>
+                </div>
+                <div
+                  className={`p-4 rounded-lg flex flex-col items-center justify-center text-center sm:col-span-2 lg:col-span-1 ${
+                    darkMode
+                      ? "bg-slate-700/40 hover:bg-slate-700/60 border border-slate-600/50"
+                      : "bg-amber-100/70 hover:bg-amber-200/90 border border-amber-200/80"
+                  } transition-all duration-200`}
+                >
+                  <span
+                    className={`text-3xl font-bold ${
+                      darkMode ? "text-amber-400" : "text-amber-500"
+                    }`}
+                  >
+                    {getUserAssignedTasksCount()}
+                  </span>
+                  <span
+                    className={`text-xs mt-1 font-medium ${
+                      darkMode ? "text-slate-300" : "text-slate-500"
+                    }`}
+                  >
+                    Assigned Tasks
+                  </span>
+                </div>
               </div>
             </div>
           </div>
@@ -506,7 +520,16 @@ export default function Dashboard() {
             >
               <p>{error}</p>
               <button
-                onClick={() => user && fetchDashboardData(user)}
+                // onClick={() => user && fetchDashboardData(user)} // This line might cause issues if user is null briefly.
+                onClick={() => {
+                  // Safer click handler
+                  const localUser = user; // Capture current user state
+                  if (localUser) {
+                    fetchDashboardData(localUser);
+                  } else {
+                    router.push("/login"); // Or handle appropriately
+                  }
+                }}
                 className={`mt-4 px-4 py-2 rounded-md ${
                   darkMode
                     ? "bg-red-800 hover:bg-red-700 text-white"
@@ -517,16 +540,19 @@ export default function Dashboard() {
               </button>
             </div>
           ) : (
+            // ... (rest of your dashboard cards: Recent Tasks, Active Projects, Upcoming Deadlines)
+            // These should remain unchanged in structure from the previous good version.
+            // Ensure they still use h-[26rem] for their height.
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {/* Recent Tasks Card */}
+              {/* Recent Tasks Card (height h-[26rem]) */}
               <div
                 className={`p-6 rounded-xl ${
                   darkMode
                     ? "bg-slate-800/50 border border-slate-700/50"
                     : "bg-white/80 border border-slate-200/50"
-                } backdrop-blur-sm shadow-md`}
+                } backdrop-blur-sm shadow-md h-[26rem] flex flex-col`}
               >
-                <h3 className="text-lg font-medium mb-3 flex justify-between items-center">
+                <h3 className="text-lg font-medium mb-3 flex justify-between items-center flex-shrink-0">
                   <span>Recent Tasks</span>
                   <span
                     className={`text-sm px-2 py-1 rounded ${
@@ -538,8 +564,7 @@ export default function Dashboard() {
                     {getRecentTasks().length}
                   </span>
                 </h3>
-
-                <div className="space-y-3">
+                <div className="flex-1 overflow-y-auto space-y-3 pr-2 scrollbar-thin scrollbar-thumb-gray-400 dark:scrollbar-thumb-gray-600 scrollbar-track-transparent">
                   {getRecentTasks().length > 0 ? (
                     getRecentTasks().map((task) => (
                       <div
@@ -548,7 +573,7 @@ export default function Dashboard() {
                           darkMode
                             ? "bg-slate-700/50 hover:bg-slate-700/70"
                             : "bg-slate-50 hover:bg-slate-100"
-                        } cursor-pointer transition-colors`}
+                        } cursor-pointer transition-colors flex-shrink-0`}
                       >
                         <div className="flex justify-between items-start">
                           <h4 className="font-medium text-sm">{task.title}</h4>
@@ -604,7 +629,7 @@ export default function Dashboard() {
                     ))
                   ) : (
                     <div
-                      className={`h-32 flex items-center justify-center ${
+                      className={`flex-1 flex items-center justify-center ${
                         darkMode ? "text-slate-400" : "text-slate-500"
                       }`}
                     >
@@ -614,15 +639,15 @@ export default function Dashboard() {
                 </div>
               </div>
 
-              {/* Active Projects Card */}
+              {/* Active Projects Card (height h-[26rem]) */}
               <div
                 className={`p-6 rounded-xl ${
                   darkMode
                     ? "bg-slate-800/50 border border-slate-700/50"
                     : "bg-white/80 border border-slate-200/50"
-                } backdrop-blur-sm shadow-md`}
+                } backdrop-blur-sm shadow-md h-[26rem] flex flex-col`}
               >
-                <h3 className="text-lg font-medium mb-3 flex justify-between items-center">
+                <h3 className="text-lg font-medium mb-3 flex justify-between items-center flex-shrink-0">
                   <span>Active Projects</span>
                   <span
                     className={`text-sm px-2 py-1 rounded ${
@@ -634,8 +659,7 @@ export default function Dashboard() {
                     {getProjectsInProgress().length}
                   </span>
                 </h3>
-
-                <div className="space-y-3">
+                <div className="flex-1 overflow-y-auto space-y-3 pr-2 scrollbar-thin scrollbar-thumb-gray-400 dark:scrollbar-thumb-gray-600 scrollbar-track-transparent">
                   {getProjectsInProgress().length > 0 ? (
                     getProjectsInProgress().map((project) => (
                       <div
@@ -644,7 +668,7 @@ export default function Dashboard() {
                           darkMode
                             ? "bg-slate-700/50 hover:bg-slate-700/70"
                             : "bg-slate-50 hover:bg-slate-100"
-                        } cursor-pointer transition-colors`}
+                        } cursor-pointer transition-colors flex-shrink-0`}
                       >
                         <div className="flex justify-between items-start">
                           <h4 className="font-medium text-sm">
@@ -694,7 +718,7 @@ export default function Dashboard() {
                     ))
                   ) : (
                     <div
-                      className={`h-32 flex items-center justify-center ${
+                      className={`flex-1 flex items-center justify-center ${
                         darkMode ? "text-slate-400" : "text-slate-500"
                       }`}
                     >
@@ -704,15 +728,15 @@ export default function Dashboard() {
                 </div>
               </div>
 
-              {/* Upcoming Deadlines Card */}
+              {/* Upcoming Deadlines Card (height h-[26rem]) */}
               <div
                 className={`p-6 rounded-xl ${
                   darkMode
                     ? "bg-slate-800/50 border border-slate-700/50"
                     : "bg-white/80 border border-slate-200/50"
-                } backdrop-blur-sm shadow-md`}
+                } backdrop-blur-sm shadow-md h-[26rem] flex flex-col`}
               >
-                <h3 className="text-lg font-medium mb-3 flex justify-between items-center">
+                <h3 className="text-lg font-medium mb-3 flex justify-between items-center flex-shrink-0">
                   <span>Upcoming Deadlines</span>
                   <span
                     className={`text-sm px-2 py-1 rounded ${
@@ -724,15 +748,11 @@ export default function Dashboard() {
                     {getUpcomingDeadlines().length}
                   </span>
                 </h3>
-
-                <div className="space-y-3">
+                <div className="flex-1 overflow-y-auto space-y-3 pr-2 scrollbar-thin scrollbar-thumb-gray-400 dark:scrollbar-thumb-gray-600 scrollbar-track-transparent">
                   {getUpcomingDeadlines().length > 0 ? (
                     getUpcomingDeadlines().map((task) => {
-                      // Calculate days remaining
                       const today = new Date();
                       const deadline = new Date(task.dueDate!);
-
-                      // Reset time to start of day for accurate calculation
                       const todayOnly = new Date(
                         today.getFullYear(),
                         today.getMonth(),
@@ -743,7 +763,6 @@ export default function Dashboard() {
                         deadline.getMonth(),
                         deadline.getDate()
                       );
-
                       const daysRemaining = Math.ceil(
                         (deadlineOnly.getTime() - todayOnly.getTime()) /
                           (1000 * 60 * 60 * 24)
@@ -756,7 +775,7 @@ export default function Dashboard() {
                             darkMode
                               ? "bg-slate-700/50 hover:bg-slate-700/70"
                               : "bg-slate-50 hover:bg-slate-100"
-                          } cursor-pointer transition-colors`}
+                          } cursor-pointer transition-colors flex-shrink-0`}
                         >
                           <div className="flex justify-between items-start">
                             <h4 className="font-medium text-sm">
@@ -821,7 +840,7 @@ export default function Dashboard() {
                     })
                   ) : (
                     <div
-                      className={`h-32 flex items-center justify-center ${
+                      className={`flex-1 flex items-center justify-center ${
                         darkMode ? "text-slate-400" : "text-slate-500"
                       }`}
                     >
@@ -834,7 +853,6 @@ export default function Dashboard() {
           )}
         </main>
       </div>
-      <Toaster position="top-right" />
     </div>
   );
 }
